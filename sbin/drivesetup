@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+#Copyright (C) 2015  Helal Uddin <helal00 at gmail.com>
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+_srcsbinpath=$(dirname $(readlink -f $0))
+_srchomepath=$(dirname $_srcsbinpath)
+_succesdrive=1
+_multiok=0
+if [ -s "$_srcsbinpath/.store/binpaths.ok" ] ; then
+	. $_srcsbinpath/.store/binpaths.ok		
+fi
+
+if [ -s "$_srcsbinpath/functions" ] ; then
+	. $_srcsbinpath/functions	
+fi
+
+if [ -z "$_skicka"  ] ; then
+	_skicka=$(command -v skicka)
+fi
+
+_configtosetup=""
+_tokencache=""
+_metacache=""
+if [ -s ~/.skicka.config ] ; then
+
+	if confirmtogo "skicka default config exist at ~/.skicka.config, Do you want to overwrite it? (yes/no): " ; then
+		rm -rf ~/.skicka.config
+		$_skicka init
+		cp -f ~/.skicka.config $_srcsbinpath/.store/skicka.config.bak
+	fi
+	
+	if [ "$_multiok" -eq 0 ] ; then
+		if [ ! -s $_srcsbinpath/.store/skicka.config.bak ] ; then
+		cp -f ~/.skicka.config $_srcsbinpath/.store/skicka.config.bak
+		replaceline "clientid" "clientid=YOUR_GOOGLE_APP_CLIENT_ID" "$_srcsbinpath/.store/skicka.config.bak"
+		replaceline "clientsecret" "clientsecret=YOUR_GOOGLE_APP_SECRET" "$_srcsbinpath/.store/skicka.config.bak"
+		fi
+		
+		read -p "Do you want to setup Google drive for another new account? if yes, please type the name of the config file or only press enter to cancel : " _configfilename
+		if [ ! -z "$_configfilename" ] ; then
+			if [ -s $_srcsbinpath/.store/"$_configfilename".config ] ; then
+				if confirmtogo "Config file name: $_overwrite already exist, do you want to overwrite? (yes/no): " ; then
+					cp -f $_srcsbinpath/.store/skicka.config.bak $_srcsbinpath/.store/"$_configfilename".config
+					_configtosetup=$_srcsbinpath/.store/"$_configfilename".config
+				fi
+			else
+				cp -f $_srcsbinpath/.store/skicka.config.bak $_srcsbinpath/.store/"$_configfilename".config
+				_configtosetup=$_srcsbinpath/.store/"$_configfilename".config
+			fi
+			echo "You can configure $_srchomepath/paths for google drive target as 'localdir|drive:$_configfilename//anyfolder/anyfolder'"
+		fi
+		
+		_count=-1
+		_multipleconfig=($(ls $_srcsbinpath/.store | grep ".config$"))
+		if [ -z "$_configtosetup" ] && [ ${#_multipleconfig[@]} -gt 0 ]; then
+			echo "You have multiple custom drive config, which one do you want to setup: "
+			for c in "${_multipleconfig[@]}"
+			do
+				_count=$((_count+1))
+				_confarray[$_count]=$c
+				echo "$((_count+1))) ${c%%.config}" 1>&2
+			done
+			_retry=-1
+			while [ -z "$_configtosetup" ]
+			do
+				_retry=$((_retry+1))
+				read -p "Please type a config No or only enter to cancel: " _cno
+				
+				if [ -z "$_cno" ] ; then
+					break
+				fi
+
+				if [ -n "$_cno" ] && [ "$_cno" -gt  0 ] && [ "$_cno" -le  "$((_count+1))" ] ; then
+					_configtosetup=$_srcsbinpath/.store/${_confarray[$((_cno-1))]}
+				fi
+				if [ "$_retry" -eq 2 ] ; then
+					echo "You failed to select a profile, aborting.."
+					exit 1
+				fi
+			done
+		fi
+	fi
+	
+else
+	$_skicka init
+	cp -f ~/.skicka.config $_srcsbinpath/.store/skicka.config.bak
+fi
+
+
+if [ -z "$_configtosetup" ] ; then
+	_configtosetup=$(echo ~/.skicka.config)
+	_tokencache=$(echo ~/.skicka.tokencache.json)
+	_metacache=$(echo ~/.skicka.metadata.cache)
+else
+	_tokencache="${_configtosetup%%.config}.tokencache.json"
+	_metacache="${_configtosetup%%.config}.metadata.cache"
+fi
+
+
+if showdriveinstructions "$_configtosetup" ; then
+	if [ "$_configtosetup" = $(echo ~/.skicka.config) ] ; then
+		_configtosetup=""
+	fi
+	if [ "$_tokencache" = $(echo ~/.skicka.tokencache.json) ] ; then
+		_tokencache=""
+	fi
+	if [ "$_metacache" = $(echo ~/.skicka.metadata.cache) ] ; then
+		_metacache=""
+	fi
+	if [ -z "$_configtosetup" ] && [ -z "$_tokencache" ] && [ -z "$_metacache" ] ; then
+		testskickaconfig "$_skicka" 0
+	else
+		testskickaconfig "$_skicka" 0 "$_configtosetup" "$_tokencache" "$_metacache"
+	fi
+fi

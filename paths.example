@@ -1,0 +1,8 @@
+#create a file named: paths
+#Example path setup without initial '#'
+#/source/path|ssh://root@2.3.4.5//root/somepath
+#/source/path|/target/path
+#/source/path|drive://backup/myfolder
+#drive://backup/myfolder|/target/path
+#/source/path|drive:config_name//backup/myfolder 
+#drive:config_name//backup/myfolder|/target/path"

@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+#Copyright (C) 2015  Helal Uddin <helal00 at gmail.com>
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+_srcsbinpath=$(dirname $(readlink -f $0))
+_srchomepath=$(dirname $_srcsbinpath)
+echo "*****************************************************************"
+echo "Start syncer at : $(date)"
+if [ -f $_srcsbinpath/.store/syncer.pid ] ; then
+	_runningpid=$(cat $_srcsbinpath/.store/syncer.pid)
+	kill -0 $_runningpid 2>/dev/null
+	if [ $? -eq 0 ] ; then
+		echo "Exiting syncer as another one is running with pid $_runningpid"
+		exit 2
+	fi
+fi
+
+echo "$$" > $_srcsbinpath/.store/syncer.pid
+echo "Running as pid $$"
+
+if [ -s "$_srcsbinpath/.store/binpaths.ok" ] ; then
+	. $_srcsbinpath/.store/binpaths.ok	
+fi
+
+if [ -s "$_srcsbinpath/functions" ] ; then
+	. $_srcsbinpath/functions	
+fi
+
+if [ ! -f "$_srcsbinpath/.store/paths.ok" ] ; then
+	exit 1
+else
+	readarray _paths < "$_srcsbinpath/.store/paths.ok"
+fi
+
+for p in "${_paths[@]}"
+do
+	_pparts=($(echo "$p" | tr "|" " " ))
+
+	if [ ${#_pparts[@]} -lt 2 ] ; then
+		continue
+	fi
+	
+	_spath=${_pparts[0]};
+	_tpath=${_pparts[1]}
+
+
+	if [ ${_spath:0:6} = "drive:" ] ; then
+		if [ -e "${_tpath}" ] ; then
+			_param="${_spath%%//*}"
+			_spath="/${_spath##*//}"
+			if _skicka=$(isinstalled "skicka" "$_skicka") ; then
+
+				if [ "$_param" = "drive:" ] ; then
+					_configfile=""
+					_tokencache=""
+					_metacache=""
+				else
+					_configfile="$_srcsbinpath/.store/${_param//drive:/}.config"
+					_tokencache="${_configfile%%.config}.tokencache.json"
+					_metacache="${_configfile%%.config}.metadata.cache"
+				fi
+
+				if testskickaconfig "$_skicka" 1 "$_configfile" "$_tokencache" "$_metacache" ; then
+					if [ -z "$_configfile" ] && [ -z "$_tokencache" ] && [ -z "$_metacache" ] ; then
+						#echo "file sync with skicka: ${_skicka} upload ${_spath} ${_tpath}"
+						${_skicka} -no-browser-auth download ${_spath} ${_tpath}
+					else
+						#echo "file sync with skicka: ${_skicka} -config=${_configfile} -tokencache=${_tokencache} upload ${_spath} ${t}"
+						${_skicka} -config=${_configfile} -tokencache=${_tokencache} -metadata-cache-file=${_metacache} -no-browser-auth download ${_spath} ${_tpath} 
+					fi
+				fi
+			fi
+		else
+			echo "ERROR: The path ${_tpath} doesn't exist on the system.Please create it for this sync to be successful"
+		fi	
+	elif [ -e ${_spath} ] ; then
+		if [ ${_tpath:0:6} = 'ssh://' ] ; then
+			if _unison=$(isinstalled "unison" "$_unison") ; then
+				if grep -q "${_tpath%//*}$" $_srcsbinpath/.store/knownhost ; then
+					#if [ -z "$_unison"  ] ; then
+						#_unison=$(command -v unison)
+					#fi
+					#echo "file sync with ssh: ${_unison} -auto -silent -batch -ui text -sshargs -C -fat ${_spath} ${t}"				
+					${_unison} -auto -silent -batch -ui text -sshargs -C -fat ${_spath} ${_tpath}
+				fi
+			fi	
+		elif [ ${_tpath:0:6} = 'drive:' ] ; then
+			_param="${_tpath%%//*}"
+			_tpath="/${_tpath##*//}"
+			
+			if _skicka=$(isinstalled "skicka" "$_skicka") ; then
+				
+				#if [ -z "$_skicka"  ] ; then
+					#_skicka=$(command -v skicka)
+				#fi
+				if [ "$_param" = "drive:" ] ; then
+					_configfile=""
+					_tokencache=""
+					_metacache=""
+				else
+					_configfile="$_srcsbinpath/.store/${_param//drive:/}.config"
+					_tokencache="${_configfile%%.config}.tokencache.json"
+					_metacache="${_configfile%%.config}.metadata.cache"
+				fi
+
+				if testskickaconfig "$_skicka" 1 "$_configfile" "$_tokencache" "$_metacache" ; then
+					if [ -z "$_configfile" ] && [ -z "$_tokencache" ] && [ -z "$_metacache" ] ; then
+						echo "file sync with skicka: ${_skicka} -no-browser-auth upload ${_spath} ${_tpath}"
+						${_skicka} -no-browser-auth upload ${_spath} ${_tpath}
+					else
+						echo "file sync with skicka: ${_skicka} -config=${_configfile} -tokencache=${_tokencache} -metadata-cache-file=${_metacache} -no-browser-auth upload ${_spath} ${_tpath}"
+						${_skicka} -config=${_configfile} -tokencache=${_tokencache} -metadata-cache-file=${_metacache} -no-browser-auth upload ${_spath} ${_tpath}
+					fi
+				fi
+			fi	
+		elif [ -e ${_tpath} ] ; then
+			if _unison=$(isinstalled "unison" "$_unison") ; then
+				#if [ -z "$_unison"  ] ; then
+					#_unison=$(command -v unison)
+				#fi
+				#echo "file sync with local: ${_unison} -auto -silent -batch -ui text -fat ${_spath} ${t}"
+				${_unison} -auto -silent -batch -ui text -fat ${_spath} ${_tpath}
+			fi
+		fi
+	else
+		echo "ERROR: The path ${_spath} doesn't exist on the system.Please create it for this sync to be successful"	
+	fi
+	
+done
+
+echo "Finished sync on $(date)"
+echo "*****************************************************************"
+rm -rf $_srcsbinpath/.store/syncer.pid

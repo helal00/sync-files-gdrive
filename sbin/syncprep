@@ -1,0 +1,264 @@
+#!/usr/bin/env bash
+#Copyright (C) 2015  Helal Uddin <helal00 at gmail.com>
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+_goversion="1.4.2"
+_srcsbinpath=$(dirname $(readlink -f $0))
+_srchomepath=$(dirname $_srcsbinpath)
+
+_installconfirmmsg="package not found. If you have custom install location, please set it in $_srchomepath/binpaths to continue. To install it now, please type 'yes' or press only enter to quit: "
+
+if [ -s "$_srcsbinpath/functions" ] ; then
+	. $_srcsbinpath/functions	
+else
+	echo "$_srcsbinpath/functions file not found!" 1>&2
+	exit 1
+fi
+
+# set paths / dirs
+if [ ! -f "$_srchomepath/paths" ] ; then
+	echo "Please write paths to sync in $_srchomepath/paths 1 line each. formats: /source/path|ssh://root@2.3.4.5//root/somepath or /source/path|/target/path or /source/path|drive://backup/myfolder or drive://backup/myfolder|/target/path or /source/path|drive:config_name//backup/myfolder or drive:config_name//backup/myfolder|/target/path" 1>&2
+	deletestorefile
+	exit 1
+fi
+
+mkdir -p $_srcsbinpath/.store
+readarray _paths < "$_srchomepath/paths"
+
+_debianbased=1
+_osname=$(getosname)
+_osversion=$(getosversion)
+_osarch="386"
+_notcompatiable=1
+
+if [ ! -z "$_osname" ] && [ ! -z "$_osversion" ] ; then
+	if [ "$_osname" = "debian" ] ; then
+		_debianbased=0
+		_result=$(echo $_osversion ">=" 7 | bc -l)
+		if [ $_result -ne 1 ] ; then
+			echo "	WARNING: Debian version $_osversion not supported, some package(s) might not be installed or work properly. Recommended version is Debian 7 (wheezy) or up" 1>&2
+			echo
+			read -p "Press enter to continue........"
+			_notcompatiable=0	
+		fi
+	elif [ "$_osname" = "ubuntu" ] ; then
+		_debianbased=0
+		_result=$(echo $_osversion ">=" 14.04 | bc -l)
+		if [ $_result -ne 1 ] ; then
+			echo "	WARNING: Ubuntu version $_osversion not supported, some package(s) may not installed or work properly. Recommended version is Ubuntu 14.04 (trusty) or up" 1>&2
+			echo
+			read -p "Press enter to continue........"
+			_notcompatiable=0
+		fi
+	else
+		echo "	WARNING: Operating system not officially supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (truesty) or up" 1>&2
+		echo
+		read -p "Press enter to continue........"
+		_notcompatiable=0
+	fi
+fi
+
+if uname -m | grep -qis "x86_64" ; then
+	_osarch="amd64"
+fi
+
+# binary file name
+if [ -s "$_srchomepath/binpaths" ] ; then
+	. $_srchomepath/binpaths	
+fi
+
+rm -rf $_srcsbinpath/.store/binpaths.ok	
+deletestorefile
+
+# sync it
+declare -a _configprocessed
+declare -a _drivenotconfig
+_installfailed=0
+_relogineed=1
+_pathnotexist=0
+for p in "${_paths[@]}"
+do
+	if [ "${p:0:1}" = "#" ] ; then
+		continue
+	fi
+	
+	#_pparts=($(echo "$p" | tr "|" " " ))
+	
+	strtoarry "$p" "_pparts" '|'
+	
+	if [ ${#_pparts[@]} -ne 2 ] ; then
+		continue
+	fi
+	
+	_spath=${_pparts[0]}
+	_tpath=${_pparts[1]}
+	#unset _pparts[0];
+	if [ ${_spath:0:6} = "drive:" ] ; then
+		if [ -e "${_tpath}" ] ; then
+			if ! processdrivepath "$p" "$_spath" ; then
+				continue
+			fi
+		else
+
+			if confirmtogo "ERROR: The path ${_tpath} doesn't exist on the system. If it is a dir and you want us to create it, type 'yes' or only enter to cancel: " ; then
+				sudo mkdir -p ${_tpath}
+				sudo chown $(id -u):$(id -g) ${_tpath}
+				if [ $? -eq 0 ] ; then
+					if ! processdrivepath "$p" "$_spath" ; then
+						continue
+					fi
+				else
+					_pathnotexist=$((_pathnotexist+1))
+					echo "	ERROR: Can't create path ${_tpath}. The entry '$p' in '$_srchomepath/binpaths' is ignored" 1>&2
+				fi
+			else
+				_pathnotexist=$((_pathnotexist+1))
+				echo "	ERROR: The entry '$p' in '$_srchomepath/binpaths' is ignored" 1>&2
+			fi
+		fi
+	elif [ -e ${_spath} ] ; then		
+
+		if [ ${_tpath:0:6} = 'ssh://' ] ; then
+			
+			if ! _unison=$(isinstalled "unison" "$_unison") ; then
+				if ! installpkg "unison" 0 "'unison' $_installconfirmmsg: " "http://www.cis.upenn.edu/~bcpierce/unison/download.html" ; then 
+					_installfailed=1
+					continue
+				fi
+			fi
+			
+			if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_unison=$_unison$" "$_srcsbinpath/.store/binpaths.ok" ; then
+				echo "_unison=$_unison" >> "$_srcsbinpath/.store/binpaths.ok"
+			fi
+			_sshurl="${_tpath%//*}"
+			_sshcred="${_sshurl:6}"
+			if [ ! -z "$_sshcred" ] ; then
+				_sshuser="${_sshcred%%@*}"
+				_sshhost="${_sshcred#*@}"
+			fi
+			if [ -z "$_sshurl" ] || [ "${_sshurl}//" = "ssh://" ] || [ -z "$_sshcred" ] || [ -z "$_sshuser" ] || [ -z "$_sshhost" ] ; then
+				echo "Not a valid ssh url ${_spath}. Valid format: ssh://user@host//path/to/" 1>&2
+			    continue
+			fi
+			
+			if [ ! -f $_srcsbinpath/.store/knownhost ] || ! grep -q "${_sshurl}$" $_srcsbinpath/.store/knownhost ; then
+				read -p "$_sshurl : host or user is not known. Press any key to run sshsetup....."
+				bash $_srcsbinpath/sshsetup "$_sshhost" "$_sshuser" "$_srcsbinpath/.store/knownhost"
+				if [ $? -ne 0 ] ; then
+					echo "sshsetup failed, pls try again with '$_srcsbinpath/sshsetup' command to continue." 1>&2
+					continue
+				else
+					_relogineed=0
+				fi
+			fi
+
+			if [ -f "$_srcsbinpath/.store/rsetup.ok" ] && grep -q "${_sshurl}$" $_srcsbinpath/.store/rsetup.ok ; then
+				read -p "As per our record, the remote server '${_sshurl}' has 'unison' package installed. If you are unsure, we can check on the machine again and install 'unison' if ubuntu/debian distro. Do you want us to check again? (yes/no) : " _reinsuns
+				if [ ! -z "$_reinsuns" ] && [ "$_reinsuns" = "yes" ] && [ -f "$_srcsbinpath/.store/rsetup.ok" ]; then
+					grep -v "${_sshurl}$" $_srcsbinpath/.store/rsetup.ok | echo >$_srcsbinpath/.store/rsetup.ok
+				fi
+			fi
+			if [ -f $_srcsbinpath/.store/knownhost ] && grep -q "${_sshurl}$" $_srcsbinpath/.store/knownhost ; then
+				
+				if [ ! -f "$_srcsbinpath/.store/rsetup.ok" ] || ! grep -q "${_sshurl}$" $_srcsbinpath/.store/rsetup.ok ; then				
+					_loginssh=${_sshurl:6}
+					ssh -t "$_loginssh" bash -c 'echo
+						_cmdloc=$(command -v unison)
+						if [ -z "$_cmdloc" ] ; then
+							sudo apt-get install unison
+						fi
+					'
+					if [ $? -ne 0 ] ; then
+						echo "The package 'unison' can't be installed on the remote server with apt-get, Please do it yourself to continue" 1>&2
+						continue
+					else
+						echo "${_sshurl}" >> $_srcsbinpath/.store/rsetup.ok
+					fi 				
+				fi
+				
+				echo "$p" >> "$_srcsbinpath/.store/paths.ok"
+			fi
+		elif [ ${_tpath:0:6} = "drive:" ] ; then
+			if ! processdrivepath "${p}" "${_tpath}" ; then
+				continue
+			fi
+
+		elif [ -e ${_tpath} ] ; then
+			if ! _unison=$(isinstalled "unison" "$_unison") ; then
+				if ! installpkg "unison" 0 "'unison' $_installconfirmmsg: " "http://www.cis.upenn.edu/~bcpierce/unison/download.html" ; then
+					_installfailed=1
+					continue
+				fi
+			fi
+
+			if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_unison=$_unison$" "$_srcsbinpath/.store/binpaths.ok" ; then
+				echo "_unison=$_unison" >> "$_srcsbinpath/.store/binpaths.ok"
+			fi
+
+			echo "$p" >> "$_srcsbinpath/.store/paths.ok"
+		fi
+	else
+		_pathnotexist=$((_pathnotexist+1))
+		echo "	ERROR: The path ${_spath} doesn't exist on the system.Please specify a valid path to upload or sync. The entry '$p' in '$_srchomepath/binpaths' is ignored." 1>&2
+	fi
+	
+done
+
+
+if [ -z "$_go"  ] ; then
+	_go=$(command -v go)
+fi
+if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_go=$_go$" "$_srcsbinpath/.store/binpaths.ok" ; then
+		echo "_go=$_go" >> "$_srcsbinpath/.store/binpaths.ok"
+fi
+if [ -z "$_wget"  ] ; then
+	_wget=$(command -v wget)
+fi
+if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_wget=$_wget$" "$_srcsbinpath/.store/binpaths.ok" ; then
+		echo "_wget=$_wget" >> "$_srcsbinpath/.store/binpaths.ok"
+fi
+
+_unsuccess=${#_drivenotconfig[@]}
+
+_isflagged=0
+
+if [ $_unsuccess -gt 0 ] ; then
+	_isflagged=1
+	echo
+	echo "	ERROR: $_unsuccess google drive config(s) setup not yet completed. Please complete it to sync all targets successfully. The drive config(s) not yet completed are: ${_drivenotconfig[@]}"
+fi	
+if [ $_installfailed -gt 0 ] ; then
+	_isflagged=1
+	echo
+	echo "	ERROR: Some required package(s) installation failed. Please install all package to sync all targets successfully."
+fi
+
+if [ "$_pathnotexist" -gt 0 ] ; then
+	_isflagged=1
+	echo
+	echo "	ERROR: Some $_pathnotexist paths not found in the system." 1>&2
+fi
+
+if [ $_relogineed -eq 0 ] ; then
+	echo
+	echo "	IMMPORTANT: Please logout and login again for changes to take effect" 1>&2
+fi
+
+if [ $_isflagged -eq 0 ] ; then
+echo
+echo "sync preparation successfull" 1>&2
+exit 0
+else
+exit 1
+fi

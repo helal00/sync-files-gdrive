@@ -1,0 +1,563 @@
+#!/usr/bin/env bash
+#Copyright (C) 2015  Helal Uddin <helal00 at gmail.com>
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+function confirmtogo(){
+	local _conit _valtogo _msg
+	_msg=$1
+	_valtogo=$2
+	if [ -z "$_msg" ] ; then
+		exit 1
+	fi
+	read -p "$_msg" _conit
+	_conit=${_conit,,}
+	if [ -z "$_valtogo" ] ; then
+		_valtogo="yes"
+	else
+		_valtogo=${_valtogo,,}
+	fi
+	if [ "$_valtogo" = "notempty" ] && [ ! -z "$_conit" ] ; then
+		echo "$_conit"
+		return 0
+	elif [ "$_valtogo" = "pathexist" ] && [ -e "$_conit" ] ; then
+		echo "$_conit"
+		return 0
+	elif [ ! -z "$_conit" ] && [ "$_conit" = "$_valtogo" ] ; then
+		return 0
+	fi
+	return 1
+}
+
+function deletestorefile(){
+	rm -rf $_srcsbinpath/.store/devload.ok
+	rm -rf $_srcsbinpath/.store/paths.ok
+}
+#strtoarry "$_url" "_uparts" '\/'
+function strtoarry(){
+	local _str _retarray _deli _c _l;_str=$1 _retarray=$2 _deli=$3
+	eval unset $_retarray
+	_c=-1;while read -r _l; do _c=$((_c+1));eval $_retarray[$_c]='$_l';done <<< "$(echo $_str | sed -e "s/$_deli/\n/g")"
+}
+
+
+function getosversion(){
+	if [ -f /etc/os-release ] ; then
+		eval $(cat /etc/os-release | grep "VERSION_ID")
+		echo $VERSION_ID
+	fi
+}
+
+function isposint(){
+	local _val
+	_val=$1
+	if [ -n "$_val" ] && echo "$_val" | grep -q "^-\?[0-9]*$" && [ "$_val" -ge 0 ] ; then
+		return 0
+	fi
+	return 1
+}
+
+function isint(){
+	local _val
+	_val=$1
+	if [ -n "$_val" ] && echo "$_val" | grep -q "^-\?[0-9]*$" ; then
+		return 0
+	fi
+	return 1
+}
+
+function escapepath(){
+	local _thep
+	_thep=$1
+	_thep=${_thep//\//\\/}
+	echo "$_thep"
+}
+
+function replaceline(){
+	local _pattern _replace _file
+	_pattern=$1
+	_replace=$2
+	_file=$3
+	sed -i "/$_pattern/ { c \
+	$_replace
+	}" "$_file"
+}
+
+
+function join { local IFS="$1"; shift; echo "$*"; }
+
+function getosname(){
+	if [ -f /etc/os-release ] ; then
+		eval $(cat /etc/os-release | grep "ID")
+		echo $ID
+	fi
+}
+
+function isinteractive(){
+	fd=0   # stdin
+	if [ -t "$fd" ] || [ -p /dev/stdin ] ; then
+	  return 0
+	fi
+	return 1
+}
+
+function getowner(){
+	local _entry	
+	_entry="$1"	
+	if [ -z "$_entry" ] ||  [ ! -e "$_entry" ] ; then
+		echo ""
+	else
+		if [ -d "$_entry" ] ; then
+			echo $(ls -al "$_entry" | grep ' \.$' | awk '{print $3}')
+		else
+			echo $(ls -al "$_entry" | awk '{print $3}') 
+		fi
+	fi
+}
+
+
+
+function getnewest(){
+	
+	local _loc _pat _new _setvar _owner _ret
+	_loc=$1
+	_pat=$2
+	_setvar=$3
+	_owner=$4
+	
+	#echo "this $_loc $_pat $_setvar"
+	_ret=1
+	_new=""
+	for sp in $(ls -a ${_loc} | grep "${_pat}")
+	do
+		if [ -z "$_new" ] || [ "${_loc}/$sp" -nt "${_loc}/$_new" ] ; then
+			if [ ! -z "$_owner" ] ; then		
+				if [ "$_owner" = $(getowner "${_loc}/$_new") ] ; then
+					_new=$sp
+				fi
+			else
+				_new=$sp
+			fi
+		fi
+	done
+	if [ ! -z "$_new" ] ; then
+		eval $_setvar=${_loc}/$_new
+		_ret=0
+	fi
+	
+	return $_ret
+	
+}
+
+function isinstalled(){
+	local _cmd _cmdloc
+	_cmd=$1
+	if [ -z $2 ] ; then
+		_cmdloc=$(command -v $_cmd)
+	else
+		_cmdloc=$2
+	fi
+	
+	if [ -z "$_cmdloc"  ] || [ ! -x "${_cmdloc}" ] ; then
+		#echo "$_cmd is not installed"
+		return 1
+	else
+		#echo "$_cmd is installed"
+		echo "$_cmdloc"
+		return 0
+	fi
+}
+
+function installpkg(){
+	local _pkgname _exitonfail _retval _helpurl _confirmmsg
+	_retval=1
+	_pkgname=$1
+	
+	if [ -z "$1" ] ; then
+		echo "No package name specified."
+		return $_retval
+	else
+		_pkgname=$1
+	fi
+	
+	if [ -z "$2" ] ; then
+		_exitonfail=1
+	else
+		_exitonfail=$2
+	fi
+	
+	if [ ! -z "$4" ] ; then
+		_helpurl=" Details at: $4 ."
+	fi
+
+	if [ $_debianbased -eq 0 ] ; then
+		if [ ! -z "$3" ] ; then
+			read -p "$3" _confirmmsg
+			_confirmmsg=${_confirmmsg,,}
+			if [ -z "$_confirmmsg" ] || [ ! "$_confirmmsg" = "yes" ] ; then
+				if [ $_exitonfail -eq 0 ] ; then
+					return 1
+				fi
+			fi
+		fi
+		sudo apt-get -y install $_pkgname
+		if [ $? -eq 0 ] ; then
+			_retval=0
+		else
+			echo "Please Install '$_pkgname' package(s) to continue. apt-get installation fails.$_helpurl" 1>&2
+			if [ $_exitonfail -eq 0 ] ; then
+				return 1
+			fi
+		fi
+	else
+		echo "Please Install '$_pkgname' package(s) for your distro to continue.$_helpurl" 1>&2
+		if [ $_exitonfail -eq 0 ] ; then
+			return 1
+		fi
+	fi
+	return $_retval;
+}
+
+function golanginstalled(){
+	
+	local _loc _verline
+	_loc=$_go
+	
+	if [ -z "$_loc" ] ; then
+		 _loc=$(isinstalled "go" "$_go")
+	fi
+	
+	if [ -z "$_loc" ] && [ -x "/usr/local/go/bin/go" ] ; then
+		_loc="/usr/local/go/bin/go"
+	fi
+	
+	if [ ! -z "$_loc" ] && [ -x "$_loc" ] && $(echo $($_loc version) | grep -q "go version go") ; then
+		_go="$_loc"
+		echo "$_loc"
+		return 0
+	fi
+	
+	return 1
+
+}
+
+function installgo()
+{
+	local pkgname failedmsg retval dirtoinstall golanghome grepline
+	failedmsg="go lang auto install failed!! to continue please try instruction in http://golang.org/doc/install"
+	pkgname="go${_goversion}.linux-${_osarch}.tar.gz"
+	bashrcfile=$(eval echo ~/.bashrc)
+	bashrcfileescaped=${thep//\//\\/}
+	retval=1
+
+	if ! golanginstalled ; then
+		if [ $_debianbased -eq 0 ] ; then
+			
+			if ! _wget=$(isinstalled "wget" "$_wget") ; then
+				if ! installpkg "wget" 0 "'wget' $_installconfirmmsg" ; then
+					_installfailed=1
+					return 1
+				fi		
+			fi
+			
+			if ! golanghome=$(confirmtogo "Default go language home directory: $(eval echo ~/.gohome) . Please type a custom directory or press only enter to take the default directory: " "notempty") ; then
+				golanghome=$(eval echo ~/.gohome)
+			fi
+			
+			if [ ! -e "$golanghome" ] ; then
+				sudo mkdir -p "$golanghome"
+				sudo chown $(id -u):$(id -g) "$golanghome"
+				if [ $? -ne 0 ] ; then
+					echo " ERROR: Go Language home directory $golanghome can't be created" 1>&2
+					return 1
+				fi
+			fi
+			
+			if ! dirtoinstall=$(confirmtogo "Default go language install directory: /usr/local . Please type a custom directory or press only enter to take the default directory: " "notempty") ; then
+				dirtoinstall="/usr/local"
+			fi
+			
+			if [ ! -e "$dirtoinstall" ] ; then
+				sudo mkdir -p "$dirtoinstall"
+				if [ $? -ne 0 ] ; then
+					echo " ERROR: Go Language install directory $dirtoinstall can't be created" 1>&2
+					return 1
+				fi
+			fi
+			
+			_curpath="$PWD"
+			rm -rf /tmp/$pkgname
+			sudo rm -rf "$dirtoinstall/go"
+			cd /tmp
+
+			$_wget --no-check-certificate "https://storage.googleapis.com/golang/$pkgname" -O "$pkgname" || ( cd $_curpath && echo "$failedmsg" 1>&2 && return 1 )
+			sudo tar -C "$dirtoinstall" -xzf $pkgname || ( cd $_curpath && echo "$failedmsg" 1>&2 && sudo rm -rf "$dirtoinstall/go" && return 1 )
+			sudo rm -rf $pkgname
+			cd $_curpath
+			export PATH="$PATH:$dirtoinstall/go/bin"
+			export GOPATH="$golanghome"
+			export PATH="$PATH:$golanghome/bin"
+			_go="$dirtoinstall/go/bin/go"
+			if ! grepline=$(grep -F "export PATH=\$PATH:$dirtoinstall/go/bin" ~/.bashrc) ; then
+				sudo sed -i -e '$a\' ~/.bashrc
+				echo "export PATH=\$PATH:$dirtoinstall/go/bin" >> ~/.bashrc	|| ( echo "$failedmsg" 1>&2 && sudo rm -rf "$dirtoinstall/go" && return 1 )
+			else
+				if [ "${grepline:0:1}" = "#" ] ; then
+					replaceline "$(escapepath "export PATH=\$PATH:$dirtoinstall/go/bin")" "export PATH=\$PATH:$dirtoinstall/go/bin" "$(eval echo ~/.bashrc)"
+				fi
+			fi
+			if ! grepline=$(grep -F "export GOPATH=$golanghome" ~/.bashrc) ; then
+				sed -i -e '$a\' ~/.bashrc
+				echo "export GOPATH=$golanghome" >> ~/.bashrc || ( echo "$failedmsg" 1>&2 && sudo rm -rf "$dirtoinstall/go" && return 1 )
+			else
+				if [ "${grepline:0:1}" = "#" ] ; then
+					replaceline "$(escapepath "export GOPATH=$golanghome")" "export GOPATH=$golanghome" "$(eval echo ~/.bashrc)"
+				fi
+			fi
+			if ! grepline=$(grep -F "export PATH=\$PATH:$golanghome/bin" ~/.bashrc) ; then
+				sed -i -e '$a\' ~/.bashrc
+				echo "export PATH=\$PATH:$golanghome/bin" >> ~/.bashrc || ( echo "$failedmsg" 1>&2 && sudo rm -rf "$dirtoinstall/go" && return 1 )
+			else
+				if [ "${grepline:0:1}" = "#" ] ; then
+					replaceline "$(escapepath "export PATH=\$PATH:$golanghome/bin")" "export PATH=\$PATH:$golanghome/bin" "$(eval echo ~/.bashrc)"
+				fi
+			fi
+			installpkg "git mercurial" || ( echo "$failedmsg" 1>&2 && sudo rm -rf "$dirtoinstall/go" && return 1 )
+			retval=0;		
+		fi
+	else
+		if [ ! -z "$_go" ] ; then
+			if ! grepline=$(grep -F "export PATH=\$PATH:$(dirname $_go)" ~/.bashrc) ; then
+				sudo sed -i -e '$a\' ~/.bashrc
+				echo "export PATH=\$PATH:$(dirname $_go)" >> ~/.bashrc || ( echo "$failedmsg" 1>&2 && sudo rm -rf /usr/local/go && exit 1 )
+			else
+				if [ "${grepline:0:1}" = "#" ] ; then
+					replaceline "$(escapepath "export PATH=\$PATH:$(dirname $_go)")" "export PATH=\$PATH:$(dirname $_go)" "$(eval echo ~/.bashrc)"
+				fi
+			fi
+			if [ -z "$GOPATH" ] ; then
+				golanghome=$(eval echo ~/.gohome)
+				export GOPATH="$golanghome"
+			else
+				golanghome="$GOPATH"
+			fi
+			export PATH=$PATH:"$golanghome/bin"
+			if ! grepline=$(grep -F "export GOPATH=$golanghome" ~/.bashrc) ; then
+					sed -i -e '$a\' ~/.bashrc
+					echo "export GOPATH=$golanghome" >> ~/.bashrc
+			else
+				if [ "${grepline:0:1}" = "#" ] ; then
+					replaceline "$(escapepath "export GOPATH=$golanghome")" "export GOPATH=$golanghome" "$(eval echo ~/.bashrc)"
+				fi
+			fi
+			if ! grepline=$(grep -F "export PATH=\$PATH:$golanghome/bin" ~/.bashrc) ; then
+					sed -i -e '$a\' ~/.bashrc
+					echo "export PATH=\$PATH:$golanghome/bin" >> ~/.bashrc
+			else
+				if [ "${grepline:0:1}" = "#" ] ; then
+					replaceline "$(escapepath "export PATH=\$PATH:$golanghome/bin")" "export PATH=\$PATH:$golanghome/bin" "$(eval echo ~/.bashrc)"
+				fi
+			fi
+			retval=0;
+		else
+			retval=1;
+		fi
+	fi
+	return $retval;
+}
+
+
+function isntallskicka()
+{
+	local _retval
+	_retval=1
+	if confirmtogo "'skicka' $_installconfirmmsg" ; then	
+		#if installgo ; then
+			$_go get github.com/google/skicka
+			if [ $? -ne 0 ] ; then
+				echo "Please Install 'skicka' package to continue. Our Installation routine failed. Details at: https://github.com/google/skicka" 1>&2
+				return $_retval
+			fi
+			 _retval=0
+			 _skicka="$GOPATH/bin/skicka"
+			#. $_srcsbinpath/drivesetup
+		#fi
+	fi
+	
+	return $_retval
+}
+
+function showdriveinstructions()
+{
+	local _config _showinstructions _retval
+	_config=$1
+	_retval=0
+	if [ ! -f "$_config" ] ; then
+		echo "Config file: $_config doesn't exist, set it up with $_srcsbinpath/drivesetup first before to continue." 1>&2
+		return 1
+	fi
+	if grep -Eq "clientid=YOUR_GOOGLE_APP_CLIENT_ID|clientsecret=YOUR_GOOGLE_APP_SECRET" $_config ; then
+		if confirmtogo "Your config file at $_config is not configured. clientid or clientsecret is missing. For setup instruction type 'yes' or only enter to cancel: " ; then
+			read -p "Press enter to read instructions to setup Google Drive........."
+			cat "$_srcsbinpath/steps"
+			echo
+			read -p "Press enter to continue........."
+		fi
+		if grep -Eq "clientid=YOUR_GOOGLE_APP_CLIENT_ID|clientsecret=YOUR_GOOGLE_APP_SECRET" $_config ; then
+			_retval=1
+		fi
+	fi
+	return $_retval
+}
+
+function testskickaconfig()
+{
+	local _lskicka _lnooutput _lconfigtosetup _ltokencache _lmetacache _retval _excode
+	_lskicka="$1"
+	_lnooutput="$2"
+	_lconfigtosetup="$3"
+	_ltokencache="$4"
+	_lmetacache="$5"
+	#_configfilename=${_lconfigtosetup##*/}
+	#_configname=${_configfilename%%.config}
+	_retval=1
+	if [ "$_lnooutput" -eq 0 ] ; then
+		echo "...We are attempting to make connection to your Google drive. If successful, you will see the content of your home folder."
+	fi
+	if [ -z "$_lconfigtosetup" ] && [ -z "$_ltokencache" ] && [ -z "$_lmetacache" ] ; then
+		if [ "$_lnooutput" -eq 1 ] ; then
+			$_lskicka -no-browser-auth ls / >/dev/null
+		else
+			$_lskicka -no-browser-auth ls /
+		fi 
+		_excode=$?
+		_lconfigtosetup=$(echo ~/.skicka.config)
+	else
+		#echo "calling this : $_lskicka -config=${_lconfigtosetup} -tokencache=${_ltokencache}"
+		if [ "$_lnooutput" -eq 1 ] ; then
+			$_lskicka -config=${_lconfigtosetup} -tokencache=${_ltokencache} -metadata-cache-file=${_lmetacache} -no-browser-auth ls / >/dev/null
+		else
+			$_lskicka -config=${_lconfigtosetup} -tokencache=${_ltokencache} -metadata-cache-file=${_lmetacache} -no-browser-auth ls /
+		fi
+		_excode=$?
+		#if [ $? -ne 0 ] && [ -f "${_ltokencache}" ] ; then
+			#rm -rf ~/.skicka.metadata.cache
+			#if [ "$_lnooutput" -eq 1 ] ; then
+				#$_lskicka -config=${_lconfigtosetup} -tokencache=${_ltokencache} -metadata-cache-file=${_lmetacache} ls / >/dev/null
+			#else
+				#$_lskicka -config=${_lconfigtosetup} -tokencache=${_ltokencache} -metadata-cache-file=${_lmetacache} ls /
+			#fi
+			#_excode=$?
+		#fi
+		
+	fi
+	if [ $_excode -ne 0 ] ; then
+		echo
+		echo "	IMPORTANT: Google drive connection for config file $_lconfigtosetup was not successfull. Before continue, please run the setup again with '$_srcsbinpath/drivesetup' command." 1>&2
+		#if [ -f $_srcsbinpath/.store/paths.ok ] ; then
+			#if [ "${_lconfigtosetup}" = "$(echo ~/.skicka.config)" ] ; then
+				#grep -v "drive://"  $_srcsbinpath/.store/paths.ok > $_srcsbinpath/.store/paths.ok
+			#else
+				#grep -v "drive:$_configname//"  $_srcsbinpath/.store/paths.ok > $_srcsbinpath/.store/paths.ok
+			#fi
+		#fi
+	else
+		echo
+		echo "Goggle drive connection for config file $_lconfigtosetup was successfull."
+		_retval=0
+	fi
+	
+	return $_retval
+}
+
+
+function processdrivepath(){
+	local _cline _path _param _p _configfile _tokencache _metacache _needle _inarray
+	_cline=$1
+	_path=$2
+	if [ -z "$_path" ] || [ -z "$_cline" ] ; then
+		return 1
+	fi
+	_param="${_path%%//*}"
+	_p="${_path##*//}"
+	
+	if installgo && ! _skicka=$(isinstalled "skicka" "$_skicka") ; then
+		#read -p "going to install skicka"
+		if ! isntallskicka ; then
+			_installfailed=1
+			return 1
+		else
+			_relogineed=0
+		fi
+	fi
+	
+	if [ -z "$_p" ] ; then
+		return 1
+	fi
+	
+	#if [ -z "$_skicka"  ] ; then
+		#_skicka=$(command -v skicka)
+	#fi
+	
+	if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_skicka=$_skicka$" "$_srcsbinpath/.store/binpaths.ok" ; then
+		echo "_skicka=$_skicka" >> "$_srcsbinpath/.store/binpaths.ok"
+	fi
+	
+
+	if [ "$_param" = "drive:" ] ; then
+		_configfile=$(echo ~/.skicka.config)
+		_tokencache=$(echo ~/.skicka.tokencache.json)
+		_metacache=$(echo ~/.skicka.metadata.cache)
+		_needle=$_configfile
+	else
+		_configfile="$_srcsbinpath/.store/${_param//drive:/}.config"
+		_tokencache="${_configfile%%.config}.tokencache.json"
+		_metacache="${_configfile%%.config}.metadata.cache"
+		_needle="${_param//drive:/}"
+	fi
+	
+
+	_inarray=$(echo ${_configprocessed[@]} | grep -o "$_needle" | wc -w)
+	if [ $_inarray -gt 0 ] ; then
+		echo "$_cline" >> "$_srcsbinpath/.store/paths.ok"
+		#echo "file sync with skicka"
+		return 1
+	fi
+
+	_inuarray=$(echo ${_drivenotconfig[@]} | grep -o "$_needle" | wc -w)
+	if [ $_inuarray -gt 0 ] ; then
+		return 1
+	fi
+	
+	if showdriveinstructions "$_configfile" ; then
+			if [ "$_configfile" = $(echo ~/.skicka.config) ] ; then
+				_configfile=""
+			fi
+			if [ "$_tokencache" = $(echo ~/.skicka.tokencache.json) ] ; then
+				_tokencache=""
+			fi
+			if [ "$_metacache" = $(echo ~/.skicka.metadata.cache) ] ; then
+				_metacache=""
+			fi
+		if testskickaconfig "$_skicka" 0 "$_configfile" "$_tokencache" "$_metacache" ; then
+			echo "$_cline" >> "$_srcsbinpath/.store/paths.ok"
+			_configprocessed=(${_configprocessed[@]} $_needle)
+		else
+			_drivenotconfig=(${_drivenotconfig[@]} $_needle)
+		fi
+	else
+		_drivenotconfig=(${_drivenotconfig[@]} $_needle)
+	fi
+}
+
+

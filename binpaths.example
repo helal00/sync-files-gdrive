@@ -1,0 +1,6 @@
+#create a file named: binpaths
+#set your custom path without initial '#'
+#_unison=/usr/bin/unison
+#_skicka=/home/user/.gohome/bin/skicka
+#_go=/usr/local/go/bin/go
+#_wget=/usr/bin/wget

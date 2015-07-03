@@ -1,0 +1,16 @@
+************************Instruction to follow Started*******************
+
+1. Create Google Developer credentials for skicka to use the Google Drive API:
+
+2. Go to the Google Developers Console ( https://console.developers.google.com ) and select "Create Project".
+After the project is created, choose "APIs and Auth" from the menu on the left, and then choose "Credentials". Select the "Create new Client Id" button and choose the "Installed Application" type. Select "Other" as the installed application type.
+
+3. Copy the text for "client id" and "client secret" to the corresponding entries in your ~/.skicka.config file.
+
+4. Now, choose "Consent screen" and set the project name (e.g. to "skicka", and provide an email address). The specific name and email address you choose here doesn't matter; it's only necessary that they be set to something.
+
+5. Finally, select "APIs" under "APIs and Auth" and enable the "Drive API" for this project.
+
+Next, we will print a URL and ask for a token. Go to the URL in a browser, log into the Google account you want to sync, and give permission for the application to access your Google Drive files. After you click 'accept', copy the code from your browser window to the terminal with the "Enter verification code" prompt.
+
+*************************Instruction to follow Ended********************

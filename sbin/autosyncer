@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#Copyright (C) 2015  Helal Uddin <helal00 at gmail.com>
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+_srcsbinpath=$(dirname $(readlink -f $0))
+_srchomepath=$(dirname $_srcsbinpath) 
+
+_hour=$1
+if [ -z "$_hour" ] ; then
+read -p "$_srcsbinpath/runsyncer will run every how many hour? Type hour between [0-23] or only press enter to take default 8 hour: " _hour
+fi
+if [ -n "$_hour" ] && echo "$_hour" | grep -q "^-\?[0-9]*$" && [ "$_hour" -ge 0 ] && [ "$_hour" -le 23 ] ; then
+	_interval=$_hour
+else
+	_interval=8 #every 8 hour
+fi
+
+if [ -f $_srcsbinpath/.store/paths.ok ] ; then
+	#write out current crontab
+	crontab -l > $_srcsbinpath/.store/mycron
+	if ! grep -q "$_srcsbinpath/syncer" $_srcsbinpath/.store/mycron ; then
+		echo "35 */$_interval * * * $_srcsbinpath/runsyncer" >> $_srcsbinpath/.store/mycron
+		#install new cron file
+		crontab $_srcsbinpath/.store/mycron
+		echo "$_srcsbinpath/runsyncer added to crontab successfully for every $_interval hour!!"
+	else
+		echo "	WARNING: $_srcsbinpath/runsyncer already exist in crontab, no changes has been made!! To apply changes, please remove the existing job first with '$_srcsbinpath/delautosync' command." 1>&2	
+	fi
+	rm $_srcsbinpath/.store/mycron
+else
+	echo
+	echo "	Error: Can't add $_srcsbinpath/runsyncer to crontab, no paths defined!!" 1>&2
+	echo
+	echo "There is no sync paths setup to run as the cron job. Please add some paths to $_srchomepath/paths and then run '$_srcsbinpath/syncprep' successfully before continue." 1>&2
+fi
