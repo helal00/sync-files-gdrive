@@ -18,8 +18,13 @@ _sshhost=$1
 _sshuser=$2
 _knownhostfile=$3
 
+
 if [ -z _knownhostfile ] ; then
-	_knownhostfile=$_srcsbinpath/knownhost
+	if [ -d "$_srcsbinpath/.store" ] ; then
+		_knownhostfile="$_srcsbinpath/.store/knownhost"
+	else
+		_knownhostfile="$_srcsbinpath/knownhost"
+	fi
 fi
 
 function isinteractive(){
