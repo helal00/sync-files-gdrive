@@ -47,7 +47,7 @@ if [ ! -z "$_osname" ] && [ ! -z "$_osversion" ] ; then
 		_debianbased=0
 		_result=$(echo $_osversion ">=" 7 | bc -l)
 		if [ $_result -ne 1 ] ; then
-			echo "	WARNING: Debian version $_osversion not supported, some package(s) might not be installed or work properly. Recommended version is Debian 7 (wheezy) or up" 1>&2
+			echo "	WARNING: Debian version $_osversion not supported, some package(s) (wget,unison) might not be installed or work properly. Recommended version is Debian 7 (wheezy) or up" 1>&2
 			echo
 			read -p "Press enter to continue........"
 			_notcompatiable=0	
@@ -56,13 +56,13 @@ if [ ! -z "$_osname" ] && [ ! -z "$_osversion" ] ; then
 		_debianbased=0
 		_result=$(echo $_osversion ">=" 14.04 | bc -l)
 		if [ $_result -ne 1 ] ; then
-			echo "	WARNING: Ubuntu version $_osversion not supported, some package(s) may not installed or work properly. Recommended version is Ubuntu 14.04 (trusty) or up" 1>&2
+			echo "	WARNING: Ubuntu version $_osversion not supported, some package(s) (wget,unison) may not be installed or work properly. Recommended version is Ubuntu 14.04 (trusty) or up" 1>&2
 			echo
 			read -p "Press enter to continue........"
 			_notcompatiable=0
 		fi
 	else
-		echo "	WARNING: Operating system not officially supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (truesty) or up" 1>&2
+		echo "	WARNING: Operating system not officially supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
 		echo
 		read -p "Press enter to continue........"
 		_notcompatiable=0
