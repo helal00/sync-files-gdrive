@@ -49,7 +49,9 @@ if [ ! -z "$_osname" ] && [ ! -z "$_osversion" ] ; then
 		if [ $_result -ne 1 ] ; then
 			echo "	WARNING: Debian version $_osversion not supported, some package(s) (wget,unison) might not be installed or work properly. Recommended version is Debian 7 (wheezy) or up" 1>&2
 			echo
-			read -p "Press enter to continue........"
+			if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+				exit 1
+			fi
 			_notcompatiable=0	
 		fi
 	elif [ "$_osname" = "ubuntu" ] ; then
@@ -58,15 +60,27 @@ if [ ! -z "$_osname" ] && [ ! -z "$_osversion" ] ; then
 		if [ $_result -ne 1 ] ; then
 			echo "	WARNING: Ubuntu version $_osversion not supported, some package(s) (wget,unison) may not be installed or work properly. Recommended version is Ubuntu 14.04 (trusty) or up" 1>&2
 			echo
-			read -p "Press enter to continue........"
+			if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+				exit 1
+			fi
 			_notcompatiable=0
 		fi
 	else
 		echo "	WARNING: Operating system not officially supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
 		echo
 		read -p "Press enter to continue........"
+		if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+			exit 1
+		fi
 		_notcompatiable=0
 	fi
+else
+	echo "	WARNING: Operating system not supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
+	echo
+	if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+		exit 1
+	fi
+	_notcompatiable=0
 fi
 
 if uname -m | grep -qis "x86_64" ; then
