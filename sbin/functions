@@ -551,12 +551,12 @@ function processdrivepath(){
 			fi
 		if testskickaconfig "$_skicka" 0 "$_configfile" "$_tokencache" "$_metacache" ; then
 			echo "$_cline" >> "$_srcsbinpath/.store/paths.ok"
-			_configprocessed=(${_configprocessed[@]} $_needle)
+			_configprocessed[${#_configprocessed[@]}]=$_needle
 		else
-			_drivenotconfig=(${_drivenotconfig[@]} $_needle)
+			_drivenotconfig[${#_drivenotconfig[@]}]=$_needle
 		fi
 	else
-		_drivenotconfig=(${_drivenotconfig[@]} $_needle)
+		_drivenotconfig[${#_drivenotconfig[@]}]=$_needle
 	fi
 }
 
