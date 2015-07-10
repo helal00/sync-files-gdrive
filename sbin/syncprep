@@ -101,6 +101,7 @@ declare -a _drivenotconfig
 _installfailed=0
 _relogineed=1
 _pathnotexist=0
+_sshagentexist=0
 for p in "${_paths[@]}"
 do
 	if [ "${p:0:1}" = "#" ] ; then
@@ -150,6 +151,13 @@ do
 					_installfailed=1
 					continue
 				fi
+			fi
+			
+			if [ -z "$SSH_AUTH_SOCK" ] ; then
+				_sshagentexist=1
+				continue
+			else
+				echo "$SSH_AUTH_SOCK" > $_srcsbinpath/.store/agentpattern
 			fi
 			
 			if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_unison=$_unison$" "$_srcsbinpath/.store/binpaths.ok" ; then
@@ -215,6 +223,13 @@ do
 					continue
 				fi
 			fi
+			
+			if [ -z "$SSH_AUTH_SOCK" ] ; then
+				_sshagentexist=1
+				continue
+			else
+				echo "$SSH_AUTH_SOCK" > $_srcsbinpath/.store/agentpattern
+			fi
 
 			if [ ! -f "$_srcsbinpath/.store/binpaths.ok" ] || ! grep -q "_unison=$_unison$" "$_srcsbinpath/.store/binpaths.ok" ; then
 				echo "_unison=$_unison" >> "$_srcsbinpath/.store/binpaths.ok"
@@ -262,6 +277,12 @@ if [ "$_pathnotexist" -gt 0 ] ; then
 	_isflagged=1
 	echo
 	echo "	ERROR: Some $_pathnotexist paths not found in the system." 1>&2
+fi
+
+if [ "$_sshagentexist" -gt 0 ] ; then
+	_isflagged=1
+	echo
+	echo "	ERROR: No ssh-agent is currently running for $(whoami), unision might fail to connect remote servers automiatically without password" 1>&2
 fi
 
 if [ $_relogineed -eq 0 ] ; then

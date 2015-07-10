@@ -26,6 +26,12 @@ else
 	_interval=8 #every 8 hour
 fi
 
+if [ ! -z "$SSH_AUTH_SOCK" ] ; then
+	echo "$SSH_AUTH_SOCK" > $_srcsbinpath/.store/agentpattern
+else
+	echo "	ERROR: No ssh-agent is currently running, unision might fail to connect remote servers automiatically without password" 1>&2
+fi
+
 if [ -f $_srcsbinpath/.store/paths.ok ] ; then
 	#write out current crontab
 	crontab -l > $_srcsbinpath/.store/mycron

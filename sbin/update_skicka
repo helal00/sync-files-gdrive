@@ -27,7 +27,7 @@ else
 	exit 1
 fi
 
-if [ ! -z "$_go"  ] || _go=$(isinstalled "go") ; then
+if [ ! -z "$_go"  ] || _go=$(isinstalled "go" "$_go") ; then
 	_insatlledver=$($_go version | awk '{print $3}')
 	_latestversion=$($_srcsbinpath/githublatest https://github.com/golang/go)
 	if [ "$_insatlledver" != "$_latestversion" ] ; then
@@ -35,7 +35,7 @@ if [ ! -z "$_go"  ] || _go=$(isinstalled "go") ; then
 	fi
 fi
 
-if [ ! -z "$_skicka"  ] || _skicka=$(isinstalled "skicka") ; then
+if [ ! -z "$_skicka"  ] || _skicka=$(isinstalled "skicka" "$_skicka") ; then
 	rm -rf $_skicka $GOPATH/src/github.com/google/skicka
 	$_go get "github.com/google/skicka"
 fi

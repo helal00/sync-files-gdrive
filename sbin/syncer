@@ -43,6 +43,36 @@ else
 	readarray _paths < "$_srcsbinpath/.store/paths.ok"
 fi
 
+if [ -z "$SSH_AUTH_SOCK" ] ; then
+
+	if [ -z "$_sockpattern" ] &&  [ -f $_srcsbinpath/.store/agentpattern ]; then
+		_sockpattern=$(cat $_srcsbinpath/.store/agentpattern)
+	fi
+
+	if [ ! -z "$_sockpattern" ] ; then
+		_agentdir=""
+		_agent=""
+		if [ ${_sockpattern:0:9} != "/tmp/ssh-" ] ; then
+			_agentfilename=${_sockpattern##*/}
+			_agentpath=$(dirname $_sockpattern)
+			_basedirname=${_agentpath##*/}
+			_prefix=${_basedirname%%-*}
+			_basedir=$(dirname $_agentpath)
+			_myname="$(whoami)"
+			getnewest "${_basedir}" "${_prefix}-*" "_agentdir" "$_myname" && getnewest "$_agentdir" "$_agentfilename" "_agent" "$_myname"
+		elif [ ${_sockpattern:0:9} = "/tmp/ssh-" ] ; then
+			getnewest "/tmp" "ssh-" "_agentdir" "$_myname" && getnewest "$_agentdir" "agent" "_agent" "$_myname"
+		fi
+	
+		if [ ! -z "$_agent" ] ; then
+			SSH_AUTH_SOCK=$_agent
+			export SSH_AUTH_SOCK;
+		fi
+	fi
+fi
+
+
+
 for p in "${_paths[@]}"
 do
 	_pparts=($(echo "$p" | tr "|" " " ))
@@ -91,7 +121,15 @@ do
 					#if [ -z "$_unison"  ] ; then
 						#_unison=$(command -v unison)
 					#fi
-					#echo "file sync with ssh: ${_unison} -auto -silent -batch -ui text -sshargs -C -fat ${_spath} ${t}"				
+					#echo "file sync with ssh: ${_unison} -auto -silent -batch -ui text -sshargs -C -fat ${_spath} ${_tpath}"
+					#echo "authshock=$SSH_AUTH_SOCK"
+					#export SSH_AUTH_SOCK="/run/user/1000/keyring-Yv4IK7/ssh"
+					if [ -z "$SSH_AUTH_SOCK" ] ; then
+						echo "	ERROR: No ssh-agent is currently running for $(whoami), unision might fail to connect remote servers automiatically without password" 1>&2
+						continue
+					else
+						echo "$SSH_AUTH_SOCK" > $_srcsbinpath/.store/agentpattern
+					fi		
 					${_unison} -auto -silent -batch -ui text -sshargs -C -fat ${_spath} ${_tpath}
 				fi
 			fi	
@@ -129,7 +167,13 @@ do
 				#if [ -z "$_unison"  ] ; then
 					#_unison=$(command -v unison)
 				#fi
-				#echo "file sync with local: ${_unison} -auto -silent -batch -ui text -fat ${_spath} ${t}"
+				#echo "file sync with local: ${_unison} -auto -silent -batch -ui text -fat ${_spath} ${_tpath}"
+				if [ -z "$SSH_AUTH_SOCK" ] ; then
+					echo "	ERROR: No ssh-agent is currently running for $(whoami), unision might fail to connect remote servers automiatically without password" 1>&2
+					continue
+				else
+					echo "$SSH_AUTH_SOCK" > $_srcsbinpath/.store/agentpattern
+				fi
 				${_unison} -auto -silent -batch -ui text -fat ${_spath} ${_tpath}
 			fi
 		fi
