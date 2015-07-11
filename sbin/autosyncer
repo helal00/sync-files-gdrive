@@ -16,6 +16,11 @@
 _srcsbinpath=$(dirname $(readlink -f $0))
 _srchomepath=$(dirname $_srcsbinpath) 
 
+if [ ! -d "$_srcsbinpath/.store" ] ; then
+	echo "The prgram is not yet ready to run as cron. Please run $_srcsbinpath/syncprep first." 1>&2
+	exit 1
+fi
+
 _hour=$1
 if [ -z "$_hour" ] ; then
 read -p "$_srcsbinpath/runsyncer will run every how many hour? Type hour between [0-23] or only press enter to take default 8 hour: " _hour

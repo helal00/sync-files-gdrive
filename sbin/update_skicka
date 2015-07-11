@@ -29,7 +29,7 @@ fi
 
 if [ ! -z "$_go"  ] || _go=$(isinstalled "go" "$_go") ; then
 	_insatlledver=$($_go version | awk '{print $3}')
-	_latestversion=$($_srcsbinpath/githublatest https://github.com/golang/go)
+	_latestversion=$("$_githublatest" https://github.com/golang/go)
 	if [ "$_insatlledver" != "$_latestversion" ] ; then
 		echo "	INFORMATION: Newer version of go language avaibale. You have version: $_insatlledver and version available: $_latestversion. Check http://golang.org/doc/install for more detials, if you wish to upgrade go language."
 	fi
