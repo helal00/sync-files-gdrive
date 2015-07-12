@@ -15,6 +15,12 @@
 
 _srcsbinpath=$(dirname $(readlink -f $0))
 _srchomepath=$(dirname $_srcsbinpath)
+
+if [ ! -d "$_srcsbinpath/.store" ] ; then
+	echo "The prgram is not yet ready to run. Please run $_srcsbinpath/syncprep first." 1>&2
+	exit 1
+fi
+
 _succesdrive=1
 _multiok=0
 if [ -s "$_srcsbinpath/.store/binpaths.ok" ] ; then

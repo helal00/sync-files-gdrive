@@ -13,7 +13,6 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-_goversion="1.4.2"
 _srcsbinpath=$(dirname $(readlink -f $0))
 _srchomepath=$(dirname $_srcsbinpath)
 
@@ -26,6 +25,8 @@ else
 	exit 1
 fi
 
+_goversion="1.4.2"
+
 # set paths / dirs
 if [ ! -f "$_srchomepath/paths" ] ; then
 	echo "Please write paths to sync in $_srchomepath/paths 1 line each. formats: /source/path|ssh://root@2.3.4.5//root/somepath or /source/path|/target/path or /source/path|drive://backup/myfolder or drive://backup/myfolder|/target/path or /source/path|drive:config_name//backup/myfolder or drive:config_name//backup/myfolder|/target/path" 1>&2
@@ -33,7 +34,8 @@ if [ ! -f "$_srchomepath/paths" ] ; then
 	exit 1
 fi
 
-mkdir -p $_srcsbinpath/.store
+
+
 readarray _paths < "$_srchomepath/paths"
 
 _debianbased=1
@@ -83,8 +85,11 @@ else
 	_notcompatiable=0
 fi
 
-if uname -m | grep -qis "x86_64" ; then
-	_osarch="amd64"
+_storeexist=1
+if [ -d "$_srcsbinpath/.store" ] ; then
+	_storeexist=0
+else
+	mkdir -p "$_srcsbinpath/.store"
 fi
 
 # binary file name

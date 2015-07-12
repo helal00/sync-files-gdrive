@@ -15,6 +15,12 @@
 
 _srcsbinpath=$(dirname $(readlink -f $0))
 _srchomepath=$(dirname $_srcsbinpath)
+
+if [ ! -d "$_srcsbinpath/.store" ] ; then
+	echo "The prgram is not yet ready to run. Please run $_srcsbinpath/syncprep first." 1>&2
+	exit 1
+fi
+
 echo "*****************************************************************"
 echo "Start syncer at : $(date)"
 if [ -f $_srcsbinpath/.store/syncer.pid ] ; then
