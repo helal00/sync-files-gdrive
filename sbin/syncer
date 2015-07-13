@@ -163,10 +163,10 @@ do
 
 				if testskickaconfig "$_skicka" 1 "$_configfile" "$_tokencache" "$_metacache" ; then
 					if [ -z "$_configfile" ] && [ -z "$_tokencache" ] && [ -z "$_metacache" ] ; then
-						echo "file sync with skicka: ${_skicka} -no-browser-auth upload ${_spath} ${_tpath}"
+						#echo "file sync with skicka: ${_skicka} -no-browser-auth upload ${_spath} ${_tpath}"
 						${_skicka} -no-browser-auth upload ${_spath} ${_tpath}
 					else
-						echo "file sync with skicka: ${_skicka} -config=${_configfile} -tokencache=${_tokencache} -metadata-cache-file=${_metacache} -no-browser-auth upload ${_spath} ${_tpath}"
+						#echo "file sync with skicka: ${_skicka} -config=${_configfile} -tokencache=${_tokencache} -metadata-cache-file=${_metacache} -no-browser-auth upload ${_spath} ${_tpath}"
 						${_skicka} -config=${_configfile} -tokencache=${_tokencache} -metadata-cache-file=${_metacache} -no-browser-auth upload ${_spath} ${_tpath}
 					fi
 				fi

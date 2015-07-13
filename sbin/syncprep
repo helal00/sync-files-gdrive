@@ -50,13 +50,13 @@ if [ ! -z "$_aptgetloc" ] && [ ! -z "$_sudoloc" ]; then
 	_debianbased=0
 	echo
 	echo "	IMPORTANT: You might need to have sudo rights to use 'apt-get' to install 'wget' and 'unison', if those pckages are not installed already."
-	if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+	if confirmtogo "Press enter to continue........or type 'quit' to quit: " "quit" ; then
 		exit 1
 	fi
 else
 	echo "	WARNING: Your Operating system (OSname: $_osname, version: $_osversion) not supported for automated installation. Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
 	echo
-	if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+	if confirmtogo "Press enter to continue........or type 'quit' to quit: " "quit" ; then
 		exit 1
 	fi
 	_notcompatiable=0
