@@ -20,13 +20,6 @@ if [ -z "$_srchomepath" ] ; then
 _srchomepath=$(dirname $_srcsbinpath)
 fi
 
-declare -a _requiredfiles
-declare -a _requiredexefiles
-
-_requiredfiles[${#_requiredfiles[@]}]="functions"
-_requiredexefiles[${#_requiredexefiles[@]}]="sshsetup"
-_requiredexefiles[${#_requiredexefiles[@]}]="githublatest"
-
 _hasgitinit=1
 _miscpathori=""
 _miscpath=""
@@ -110,14 +103,11 @@ if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
 			cd "$(dirname $_miscpathori)"
 			git submodule init || _miscerror=0
 			git submodule update || _miscerror=0
-			echo "after git: _miscerror = $_miscerror"
 			cd "$_curPWD"
 			if [ "$_miscerror" -ne 0 ] && ! _derrmsg=$(dresolved $_miscpathori) ; then
-				echo "error at git: _miscerror = $_miscerror  and _derrmsg = $_derrmsg"
 				echo "$_derrmsg" 1>&2
 				_miscerror=0
 			else
-				echo "ok at git: _derrmsg = $_derrmsg"
 				for rfile in "${_requiredfiles[@]}"
 				do
 					. "$_miscpathori/$rfile"
@@ -131,7 +121,7 @@ if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
 			_miscerror=0
 		fi
 		if [ "$_miscerror" -eq 0 ] ; then
-			echo "Please clone the repo from https://github.com/helal00/linux-misc at $_miscpathori before continue" 2>&1
+			echo "	IMPORTANT: Please update the repo from https://github.com/helal00/linux-misc at $_miscpathori with 'git submodule init && git submodule update' before continue. If you had already cloned the repo somewhere else, please create the file $_miscpathori/linux-misc-path and specify the path on the first line." 2>&1
 			exit 1
 		fi
 	else
@@ -169,11 +159,8 @@ if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
 		fi
 		
 		if [ "$_miscerror" -eq 0 ] ; then
-			echo "Please download from https://github.com/helal00/linux-misc/archive/master.tar.gz and extract it to $_miscpathori to continue." 2>&1
+			echo "	IMPORTANT: Please download from https://github.com/helal00/linux-misc/archive/master.tar.gz and extract it to $_miscpathori to continue.  If you had already cloned the repo somewhere else, please create the file $_miscpathori/linux-misc-path and specify the path on the first line." 2>&1
 			exit 1
 		fi
 	fi	
 fi
-
-echo "sshsetup = $_sshsetup"
-echo "githublatest = $_githublatest"

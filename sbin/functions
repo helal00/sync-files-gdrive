@@ -13,6 +13,13 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+declare -a _requiredfiles
+declare -a _requiredexefiles
+
+_requiredfiles[${#_requiredfiles[@]}]="functions"
+_requiredexefiles[${#_requiredexefiles[@]}]="sshsetup"
+_requiredexefiles[${#_requiredexefiles[@]}]="githublatest"
+
 if [ ! -z "$_srcsbinpath" ] ; then
 	if [ -s "$_srcsbinpath/resolve" ] ; then
 		. $_srcsbinpath/resolve	
