@@ -94,9 +94,9 @@ fi
 
 
 if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
-	echo "Required linux-misc repo from https://github.com/helal00/linux-misc is not found." 1>&2
+	echo "	IMPORTANT: Required 'linux-misc' repo from https://github.com/helal00/linux-misc is not found. If you had already cloned/downloaded the repo somewhere else, please create a file '$_miscpathori/linux-misc-path' and specify the absolute path ( e.g. /some/path/to/linux-misc ) on the first line of that file." 1>&2
 	if [ "$_hasgitinit" -eq 0 ] && [ -s "$(dirname $_miscpath)/.gitmodules" ] && [ ! -z "$(command -v "git")" ]; then
-		read -p "Do you want us to clone linux-misc with git?(yes/enter only to quit)" _clonesubmdle
+		read -p " or Do you want us to clone linux-misc with git?(yes/enter only to quit): " _clonesubmdle
 		_clonesubmdle=${_clonesubmdle,,}
 		if [ ! -z "$_clonesubmdle" ] && [ "$_clonesubmdle" = "yes" ] ; then
 			_curPWD="$PWD"
@@ -121,12 +121,12 @@ if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
 			_miscerror=0
 		fi
 		if [ "$_miscerror" -eq 0 ] ; then
-			echo "	IMPORTANT: Please update the repo from https://github.com/helal00/linux-misc at $_miscpathori with 'git submodule init && git submodule update' before continue. If you had already cloned the repo somewhere else, please create the file $_miscpathori/linux-misc-path and specify the path on the first line." 2>&1
+			echo "	IMPORTANT: Please update the repo from https://github.com/helal00/linux-misc at $_miscpathori with 'git submodule init && git submodule update' before continue." 2>&1
 			exit 1
 		fi
 	else
 		if [ ! -z "$(command -v "wget")" ] && [ ! -z "$(command -v "tar")" ]; then
-			read -p "Do you want us to download linux-misc?(yes/enter only to quit): " _downloadlnxmsc
+			read -p " or Do you want us to download linux-misc?(yes/enter only to quit): " _downloadlnxmsc
 			_downloadlnxmsc=${_downloadlnxmsc,,}
 			if [ ! -z "$_downloadlnxmsc" ] && [ "$_downloadlnxmsc" = "yes" ] ; then
 				rm -rf "$_miscpathori" "$(dirname $_miscpathori)/master.tar.gz"
@@ -159,7 +159,7 @@ if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
 		fi
 		
 		if [ "$_miscerror" -eq 0 ] ; then
-			echo "	IMPORTANT: Please download from https://github.com/helal00/linux-misc/archive/master.tar.gz and extract it to $_miscpathori to continue.  If you had already cloned the repo somewhere else, please create the file $_miscpathori/linux-misc-path and specify the path on the first line." 2>&1
+			echo "	IMPORTANT: Please download from https://github.com/helal00/linux-misc/archive/master.tar.gz and extract it to $_miscpathori to continue." 2>&1
 			exit 1
 		fi
 	fi	

@@ -34,50 +34,27 @@ if [ ! -f "$_srchomepath/paths" ] ; then
 	exit 1
 fi
 
-
-
-readarray _paths < "$_srchomepath/paths"
+# binary file name
+if [ -s "$_srchomepath/binpaths" ] ; then
+	. $_srchomepath/binpaths	
+fi
 
 _debianbased=1
+_aptgetloc=$(command -v apt-get)
+_sudoloc=$(command -v sudo)
 _osname=$(getosname)
 _osversion=$(getosversion)
-_osarch="386"
 _notcompatiable=1
 
-if [ ! -z "$_osname" ] && [ ! -z "$_osversion" ] ; then
-	if [ "$_osname" = "debian" ] ; then
-		_debianbased=0
-		_result=$(echo $_osversion ">=" 7 | bc -l)
-		if [ $_result -ne 1 ] ; then
-			echo "	WARNING: Debian version $_osversion not supported, some package(s) (wget,unison) might not be installed or work properly. Recommended version is Debian 7 (wheezy) or up" 1>&2
-			echo
-			if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
-				exit 1
-			fi
-			_notcompatiable=0	
-		fi
-	elif [ "$_osname" = "ubuntu" ] ; then
-		_debianbased=0
-		_result=$(echo $_osversion ">=" 14.04 | bc -l)
-		if [ $_result -ne 1 ] ; then
-			echo "	WARNING: Ubuntu version $_osversion not supported, some package(s) (wget,unison) may not be installed or work properly. Recommended version is Ubuntu 14.04 (trusty) or up" 1>&2
-			echo
-			if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
-				exit 1
-			fi
-			_notcompatiable=0
-		fi
-	else
-		echo "	WARNING: Operating system not officially supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
-		echo
-		read -p "Press enter to continue........"
-		if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
-			exit 1
-		fi
-		_notcompatiable=0
+if [ ! -z "$_aptgetloc" ] && [ ! -z "$_sudoloc" ]; then
+	_debianbased=0
+	echo
+	echo "	IMPORTANT: You might need to have sudo rights to use 'apt-get' to install 'wget' and 'unison', if those pckages are not installed already."
+	if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
+		exit 1
 	fi
 else
-	echo "	WARNING: Operating system not supported, Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
+	echo "	WARNING: Your Operating system (OSname: $_osname, version: $_osversion) not supported for automated installation. Required packages (wget,unison) need to be installed by yourself. Fully supported version is Debian 7 (wheezy) or Ubuntu 14.04 (trusty) or up" 1>&2
 	echo
 	if confirmtogo "Press enter to continue........or type 'quit' to quit" "quit" ; then
 		exit 1
@@ -85,16 +62,12 @@ else
 	_notcompatiable=0
 fi
 
+
 _storeexist=1
 if [ -d "$_srcsbinpath/.store" ] ; then
 	_storeexist=0
 else
 	mkdir -p "$_srcsbinpath/.store"
-fi
-
-# binary file name
-if [ -s "$_srchomepath/binpaths" ] ; then
-	. $_srchomepath/binpaths	
 fi
 
 rm -rf $_srcsbinpath/.store/binpaths.ok	
@@ -107,6 +80,7 @@ _installfailed=0
 _relogineed=1
 _pathnotexist=0
 _sshagentexist=0
+readarray _paths < "$_srchomepath/paths"
 for p in "${_paths[@]}"
 do
 	if [ "${p:0:1}" = "#" ] ; then
