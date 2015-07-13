@@ -13,25 +13,12 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-if [ ! -z "$_srcsbinpath" ]; then
-	_miscpath="$_srcsbinpath/.store/linux-misc"
-	if [ -s "$_miscpath" ] ; then
-		. "$_miscpath"
-	fi
-	
-	if ! _calloutput=$(addmiscpath "sshsetup" "$_sshsetup") ; then
-		echo "$_calloutput" 1>&2
-		exit 1
+if [ ! -z "$_srcsbinpath" ] ; then
+	if [ -s "$_srcsbinpath/resolve" ] ; then
+		. $_srcsbinpath/resolve	
 	else
-		_sshsetup="$_calloutput"
-	fi
-
-	if ! _calloutput=$(addmiscpath "githublatest" "$_githublatest") ; then
-		echo "$_calloutput" 1>&2
+		echo "$_srcsbinpath/resolve file not found!" 1>&2
 		exit 1
-	else
-		_githublatest="$_calloutput"
 	fi
 fi
 

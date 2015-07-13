@@ -27,8 +27,12 @@ if [ -s "$_srcsbinpath/.store/binpaths.ok" ] ; then
 	. $_srcsbinpath/.store/binpaths.ok		
 fi
 
+
 if [ -s "$_srcsbinpath/functions" ] ; then
 	. $_srcsbinpath/functions	
+else
+	echo "$_srcsbinpath/functions file not found!" 1>&2
+	exit 1
 fi
 
 if [ -z "$_skicka"  ] ; then
