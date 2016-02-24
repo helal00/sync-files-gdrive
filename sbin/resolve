@@ -17,7 +17,6 @@ if [ -z "$_srcsbinpath" ] ; then
 _srcsbinpath=$(dirname $(readlink -f $0))
 fi
 
-
 _hasgitinit=1
 _miscpathori=""
 _miscpath=""
@@ -64,8 +63,8 @@ if [ -z "$_srchomepath" ] ; then
 _srchomepath=$(dirname $_srcsbinpath)
 fi
 
-if [ -z "$(ls -A $_miscpath)" ] ; then
-	if [ -d "$(dirname $(dirname "$_miscpath"))/linux-misc" ] && [ ! -z "$(ls -A "$(dirname $(dirname "$_miscpath"))/linux-misc")" ]; then
+if [ -z "$(ls -A $_miscpath 2>/dev/null)" ] ; then
+	if [ -d "$(dirname $(dirname "$_miscpath"))/linux-misc" ] && [ ! -z "$(ls -A "$(dirname $(dirname "$_miscpath"))/linux-misc" 2>/dev/null)" ]; then
 		_miscpath="$(dirname $(dirname "$_miscpath"))/linux-misc"
 	fi
 fi
@@ -95,7 +94,7 @@ fi
 
 
 
-if [ -z "$(ls -A $_miscpath)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
+if [ -z "$(ls -A $_miscpath 2>/dev/null)" ] || [ "$_miscfilenotfound" -eq 0 ] ; then
 	echo "	IMPORTANT: Required 'linux-misc' repo from https://github.com/helal00/linux-misc is not found. If you had already cloned/downloaded the repo somewhere else, please create a file '$_miscpathori/linux-misc-path' and specify the absolute path ( e.g. /some/path/to/linux-misc ) on the first line of that file." 1>&2
 	if [ "$_hasgitinit" -eq 0 ] && [ -s "$(dirname $_miscpath)/.gitmodules" ] && [ ! -z "$(command -v "git")" ]; then
 		read -p " or Do you want us to clone linux-misc with git?(yes/enter only to quit): " _clonesubmdle

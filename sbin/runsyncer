@@ -30,7 +30,7 @@ else
 	_logcmd="&>>$_logpath"
 fi
 
-_maxsize=1048576
+_maxsize=1024
 _running=0
 if [ -f $_srcsbinpath/.store/syncer.pid ] ; then
 	_runningpid=$(cat $_srcsbinpath/.store/syncer.pid)

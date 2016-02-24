@@ -41,8 +41,9 @@ if [ ! -z "$_go"  ] || _go=$(isinstalled "go" "$_go") ; then
 fi
 
 if [ ! -z "$_skicka"  ] || _skicka=$(isinstalled "skicka" "$_skicka") ; then
-	rm -rf $_skicka $GOPATH/src/github.com/google/skicka
+    if [ -d $_srchomepath/old_skicha_src ] ; then
+        mv $_srchomepath/old_skicha_src $_srchomepath/old_skicha_src_$(date +%s)
+    fi
+    mv $GOPATH/src/github.com/google/skicka $_srchomepath/old_skicha_src
 	$_go get "github.com/google/skicka"
 fi
-
-
